@@ -1,0 +1,32 @@
+import requests
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from xml.dom.minidom import parseString
+
+# 블로그 주소
+BLOG_URL = "https://yourblog.tistory.com"
+RSS_URL = f"{BLOG_URL}/rss"
+
+# RSS에서 글 목록 가져오기
+response = requests.get(RSS_URL)
+root = ET.fromstring(response.content)
+
+items = root.findall('.//item')
+
+# 사이트맵 XML 만들기
+sitemap = ET.Element('urlset', xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
+
+for item in items:
+    url = ET.SubElement(sitemap, 'url')
+    ET.SubElement(url, 'loc').text = item.find('link').text
+    ET.SubElement(url, 'lastmod').text = datetime.now().strftime('%Y-%m-%d')
+    ET.SubElement(url, 'changefreq').text = 'weekly'
+    ET.SubElement(url, 'priority').text = '0.8'
+
+# 예쁘게 출력
+pretty_xml = parseString(ET.tostring(sitemap)).toprettyxml()
+
+with open('sitemap-auto.xml', 'w', encoding='utf-8') as f:
+    f.write(pretty_xml)
+
+print("sitemap-auto.xml 파일 생성 완료!")
