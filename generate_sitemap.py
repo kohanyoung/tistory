@@ -10,9 +10,11 @@ SITEMAP_FILE = "sitemap.xml"
 
 def fetch_blog_posts():
     """RSS 피드를 가져와서 게시물 URL을 추출"""
-    response = requests.get(BLOG_RSS_URL)
-    if response.status_code != 200:
-        print("RSS 피드를 가져오지 못했습니다.")
+    try:
+        response = requests.get(BLOG_RSS_URL)
+        response.raise_for_status()  # HTTP 오류 발생 시 예외를 발생시킴
+    except requests.exceptions.RequestException as e:
+        print(f"RSS 피드를 가져오는 중 오류가 발생했습니다: {e}")
         return []
 
     root = ET.fromstring(response.content)
@@ -21,7 +23,13 @@ def fetch_blog_posts():
     for item in root.findall(".//item"):
         link = item.find("link").text
         pub_date = item.find("pubDate").text
-        date = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z").date()
+
+        try:
+            # 날짜 형식이 맞지 않으면 오류가 발생할 수 있음
+            date = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z").date()
+        except ValueError as e:
+            print(f"날짜 형식 오류: {pub_date}")
+            continue
 
         urls.append((link, date))
     
@@ -42,13 +50,17 @@ def generate_sitemap(urls):
 
     sitemap += "</urlset>"
 
-    with open(SITEMAP_FILE, "w", encoding="utf-8") as file:
-        file.write(sitemap)
-    
-    print(f"✅ {SITEMAP_FILE} 생성 완료!")
+    try:
+        with open(SITEMAP_FILE, "w", encoding="utf-8") as file:
+            file.write(sitemap)
+        print(f"✅ {SITEMAP_FILE} 생성 완료!")
+    except IOError as e:
+        print(f"파일 저장 중 오류가 발생했습니다: {e}")
 
 # 실행
 if __name__ == "__main__":
     urls = fetch_blog_posts()
     if urls:
-        generate_sitemap(urls())
+        generate_sitemap(urls)
+    else:
+        print("게시물을 가져오는 데 실패했습니다.")
