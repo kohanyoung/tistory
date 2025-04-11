@@ -1,32 +1,46 @@
 name: Generate Sitemap
 
 on:
-  schedule:
-    - cron: "0 0 * * *"  # 매일 00:00(UTC 기준)에 실행 (한국 시간: 오전 9시)
-  workflow_dispatch:  # 수동 실행 가능
+  push:
+    branches:
+      - main  # 또는 마스터 브랜치에 푸시될 때 실행됩니다.
+  workflow_dispatch:  # 수동 실행도 가능하도록 설정
 
 jobs:
-  generate:
+  generate-sitemap:
     runs-on: ubuntu-latest
+
     steps:
-      - name: 저장소 체크아웃
-        uses: actions/checkout@v3
+    # 1. 레포지토리 체크아웃
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Python 설치
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
+    # 2. 사이트맵을 생성할 파이썬 코드 실행
+    - name: Generate Sitemap
+      run: |
+        python3 generate_sitemap.py  # 실제로 사이트맵을 생성하는 파이썬 스크립트 실행
 
-      - name: 의존성 설치
-        run: pip install requests
+    # 3. Git 설정 (이메일, 사용자명 설정)
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
 
-      - name: 사이트맵 생성 실행
-        run: python generate_sitemap.py
+    # 4. 사이트맵을 docs 폴더로 이동
+    - name: Move sitemap to docs folder
+      run: |
+        mv sitemap.xml docs/sitemap.xml  # sitemap.xml을 docs 폴더로 이동
 
-      - name: 변경 사항 커밋
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add sitemap.xml
-          git commit -m "자동 생성된 사이트맵 업데이트" || echo "변경 사항 없음"
-          git push
+    # 5. Git 상태 확인 및 커밋
+    - name: Commit and push sitemap
+      run: |
+        git add docs/sitemap.xml  # docs 폴더 내의 sitemap.xml을 Git에 추가
+        git commit -m "자동 생성된 사이트맵 추가" || echo "No changes to commit"  # 변경사항이 없으면 커밋하지 않음
+        git push  # 변경사항을 푸시
+
+    # 6. GitHub Pages로 사이트맵을 배포할 경우
+    - name: Deploy to GitHub Pages (Optional)
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs  # docs 폴더에 푸시
